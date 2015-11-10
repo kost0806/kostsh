@@ -202,6 +202,7 @@ int command(char *input) {
 				break;
 			case REDIEX :
 				close(1);
+				close(2);
 				dup(pfd[pturn][1]);
 				close(pfd[pturn][0]);
 				close(pfd[pturn][1]);
