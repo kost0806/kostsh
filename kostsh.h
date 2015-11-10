@@ -33,7 +33,7 @@
 /* TYPEDEF */
 typedef enum {NO_BUILTIN, BUILTIN_CD, BUILTIN_PWD, BUILTIN_HIS, BUILTIN_EXIT} func_type;
 typedef enum {NON_PIPE, BEFORE_PIPE, AFTER_PIPE, BETWEEN_PIPE} pipe_flag;
-typedef enum {NON_REDI, REDI, REDI_TRGT, REDIAPPEND, REDIAPPEND_TRGT, REDIIN} redi_flag;
+typedef enum {NON_REDI, REDI, REDI_TRGT, REDIAPPEND, REDIAPPEND_TRGT, REDIIN, REDIEX, REDIEX_TRGT} redi_flag;
 typedef enum {NON_BACKGROUND, BACKGROUND} back_flag;
 
 /* FUNCTIONS */
@@ -194,6 +194,14 @@ int command(char *input) {
 			case REDI :
 			case REDIAPPEND :
 				close(1);
+				close(2);
+				dup(pfd[pturn][1]);
+				dup(pfd[pturn][1]);
+				close(pfd[pturn][0]);
+				close(pfd[pturn][1]);
+				break;
+			case REDIEX :
+				close(1);
 				dup(pfd[pturn][1]);
 				close(pfd[pturn][0]);
 				close(pfd[pturn][1]);
@@ -231,6 +239,9 @@ int command(char *input) {
 				break;
 			case REDIAPPEND :
 				rflag = REDIAPPEND_TRGT;
+				break;
+			case REDIEX :
+				rflag = REDIEX_TRGT;
 				break;
 			case REDIIN :
 				close(pfd[pturn][0]);
@@ -353,14 +364,16 @@ void parse(char *cmd_line) {
 			case '>' :
 				if (*(cmd_ptr + 1) == '>') {
 					rflag = REDIAPPEND;
-					printf("Redirection detected\n");
 					cmd_ptr++;
-					pipe(pfd[pturn]);
+				}
+				else if (*(cmd_ptr + 1) == '!') {
+					rflag = REDIEX;
+					cmd_ptr++;
 				}
 				else {
 					rflag = REDI;
-					pipe(pfd[pturn]);
 				}
+				pipe(pfd[pturn]);
 				if (buf_len != 0) {
 					command(buf);
 					memset(buf, 0, buf_len); 
@@ -454,6 +467,32 @@ void parse(char *cmd_line) {
 			buf_len = 0;
 			buf_ptr = buf;
 			break;
+		case REDIEX_TRGT :
+			rflag = NON_REDI;
+			sub_directory(buf, redi_buf);
+			if (!access(redi_buf, F_OK)) {
+				remove(redi_buf);
+			}
+			if ((redi_fd = open(redi_buf, O_WRONLY|O_CREAT, 0644)) < 0) {
+				//perror("open");
+				fprintf(stderr, "failed redirect\n");
+				return;
+			}
+			while ((redi_line = read(pfd[pturn][0], redi_buf, 512)) > 0) {
+				if (write(redi_fd, redi_buf, redi_line) < 0) {
+					perror("write");
+					fprintf(stderr, "error occur\n");
+				}
+				if (redi_line < 512)
+					break;
+			}
+			close(pfd[pturn][0]);
+			close(pfd[pturn][1]);
+			close(redi_fd);
+			memset(buf, 0, buf_len);
+			buf_len = 0;
+			buf_ptr = buf;
+			break;
 		case REDIIN :
 			pipe(pfd[pturn]);
 			sub_directory(buf, redi_buf);
@@ -471,6 +510,7 @@ void parse(char *cmd_line) {
 			rflag = NON_REDI;
 			buf_len = 0;
 	}
+
 
 	if (buf_len != 0) {
 		command(buf);
