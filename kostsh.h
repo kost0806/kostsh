@@ -204,6 +204,7 @@ int command(char *input) {
 				close(1);
 				close(2);
 				dup(pfd[pturn][1]);
+				dup(pfd[pturn][1]);
 				close(pfd[pturn][0]);
 				close(pfd[pturn][1]);
 				break;
@@ -423,7 +424,8 @@ void parse(char *cmd_line) {
 			rflag = NON_REDI;
 			sub_directory(buf, redi_buf);
 			if (!access(redi_buf, F_OK)) {
-				remove(redi_buf);
+				fprintf(stderr, "File exists: %s\n", buf);
+				return;
 			}
 			if ((redi_fd = open(redi_buf, O_WRONLY|O_CREAT, 0644)) < 0) {
 				//perror("open");
