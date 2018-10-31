@@ -1,6 +1,6 @@
 #ifndef LIB
 #define LIB
-#include "kostsh.h"
+#include "kostsh_utils.h"
 #endif
 
 char *HOME;
